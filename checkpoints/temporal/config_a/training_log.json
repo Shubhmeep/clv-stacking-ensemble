@@ -1,0 +1,14 @@
+[
+  {
+    "config": "Config_A",
+    "timestamp": "2026-04-02T12:26:11.303969",
+    "meta_features_shape": [
+      10355,
+      3
+    ],
+    "train_mae": 0.9589615535141397,
+    "train_rmse": 1.677131434065332,
+    "train_time_seconds": 0.027924,
+    "meta_model": "ElasticNet"
+  }
+]
