@@ -4,14 +4,21 @@ Baseline models for CLV prediction.
 
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import ElasticNet
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import ElasticNet, PoissonRegressor
+from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.svm import SVR
+from sklearn.neural_network import MLPRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.compose import TransformedTargetRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import warnings
 warnings.filterwarnings('ignore')
 
 
-def train_elasticnet(X_train, y_train, alpha=0.1, l1_ratio=0.5):
+def train_elasticnet(X_train, y_train, alpha=0.1, l1_ratio=0.5, use_log_target=False):
     """
     Train ElasticNet baseline.
     
@@ -31,7 +38,15 @@ def train_elasticnet(X_train, y_train, alpha=0.1, l1_ratio=0.5):
     sklearn model
         Trained ElasticNet model
     """
-    model = ElasticNet(alpha=alpha, l1_ratio=l1_ratio, random_state=42)
+    base = ElasticNet(alpha=alpha, l1_ratio=l1_ratio, random_state=42)
+    if use_log_target:
+        model = TransformedTargetRegressor(
+            regressor=base,
+            func=np.log1p,
+            inverse_func=np.expm1
+        )
+    else:
+        model = base
     model.fit(X_train, y_train)
     return model
 
@@ -104,7 +119,112 @@ def train_xgboost(X_train, y_train, n_estimators=100, max_depth=5, learning_rate
     model.fit(X_train, y_train)
     return model
 
-def train_bgnbd_baseline(train_df, horizon_months=3):
+
+def train_extra_trees(X_train, y_train, n_estimators=300, max_depth=None):
+    """
+    Train ExtraTrees baseline (more randomized than RandomForest).
+    """
+    model = ExtraTreesRegressor(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        random_state=42,
+        n_jobs=-1
+    )
+    model.fit(X_train, y_train)
+    return model
+
+
+def train_hist_gb(X_train, y_train, max_depth=6, learning_rate=0.1):
+    """
+    Train Histogram-based Gradient Boosting baseline.
+    """
+    model = HistGradientBoostingRegressor(
+        max_depth=max_depth,
+        learning_rate=learning_rate,
+        random_state=42
+    )
+    model.fit(X_train, y_train)
+    return model
+
+
+def train_poisson(X_train, y_train, alpha=0.1, max_iter=1000):
+    """
+    Train Poisson regression baseline (count-aware linear model).
+    """
+    model = PoissonRegressor(alpha=alpha, max_iter=max_iter)
+    model.fit(X_train, y_train)
+    return model
+
+
+def train_knn(X_train, y_train, n_neighbors=15, weights='distance', use_log_target=False):
+    """
+    Train KNN regressor baseline (local, non-parametric).
+    """
+    base = KNeighborsRegressor(n_neighbors=n_neighbors, weights=weights)
+    if use_log_target:
+        model = TransformedTargetRegressor(
+            regressor=base,
+            func=np.log1p,
+            inverse_func=np.expm1
+        )
+    else:
+        model = base
+    model.fit(X_train, y_train)
+    return model
+
+
+def train_svr(X_train, y_train, C=10.0, epsilon=0.1, gamma='scale', use_log_target=False):
+    """
+    Train SVR baseline with scaling.
+    """
+    base = Pipeline([
+        ('scaler', StandardScaler()),
+        ('svr', SVR(C=C, epsilon=epsilon, gamma=gamma))
+    ])
+    if use_log_target:
+        model = TransformedTargetRegressor(
+            regressor=base,
+            func=np.log1p,
+            inverse_func=np.expm1
+        )
+    else:
+        model = base
+    model.fit(X_train, y_train)
+    return model
+
+
+def train_mlp(X_train, y_train, hidden_layer_sizes=(64, 32), alpha=1e-4,
+              learning_rate_init=1e-3, max_iter=500, early_stopping=True,
+              use_log_target=True):
+    """
+    Train MLP baseline with scaling. Optionally log-transform target.
+    """
+    mlp = Pipeline([
+        ('scaler', StandardScaler()),
+        ('mlp', MLPRegressor(
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation='relu',
+            alpha=alpha,
+            learning_rate_init=learning_rate_init,
+            max_iter=max_iter,
+            early_stopping=early_stopping,
+            random_state=42
+        ))
+    ])
+
+    if use_log_target:
+        model = TransformedTargetRegressor(
+            regressor=mlp,
+            func=np.log1p,
+            inverse_func=np.expm1
+        )
+    else:
+        model = mlp
+
+    model.fit(X_train, y_train)
+    return model
+
+def train_bgnbd_baseline(train_df, horizon_months=3, penalizer_coef=0.1):
     """
     Train BG/NBD probabilistic baseline using lifetimes library.
     
@@ -159,7 +279,7 @@ def train_bgnbd_baseline(train_df, horizon_months=3):
     
     # Train model with regularization to help convergence
     try:
-        bgf = BetaGeoFitter(penalizer_coef=0.01)  # Add regularization
+        bgf = BetaGeoFitter(penalizer_coef=penalizer_coef)  # Stronger regularization by default
         bgf.fit(
             rfm_df['frequency'], 
             rfm_df['recency'], 

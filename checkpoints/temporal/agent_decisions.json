@@ -1,0 +1,10 @@
+[
+  {
+    "timestamp": "2026-04-02T12:26:20.538130",
+    "query": "Which model should I use for production deployment?",
+    "selected_model": "RandomForest",
+    "confidence": 0.75,
+    "reasoning_steps": 7,
+    "using_langgraph": true
+  }
+]

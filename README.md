@@ -63,6 +63,21 @@ clv-stacking/
 - Target: transactions in next 3 months
 - Features: freq, freq_3m, latetime, earlytime
 
+**Research-Grade Temporal Protocol (New)**
+Two additional notebooks implement a stricter temporal stacking protocol that is suitable for reporting:
+- `notebooks/CKPT2_Temporal.ipynb`: builds a multi-cutoff training set and saves outputs under `data/temporal`, `models/temporal`, `results/temporal`
+- `notebooks/CKPT3_Temporal_Stacked_Ensemble.ipynb`: runs stacking using true time order and saves checkpoints under `checkpoints/temporal`
+
+**What Was Fixed (Before vs After)**
+- Before: Training set used a single cutoff window, so within-train time ordering was not meaningful for forward-chaining.
+- After: Training set is built from multiple cutoffs and sorted by `cutoff_date`, enabling true temporal ordering.
+- Before: Stacking comments implied reuse of baseline weights; models were actually re-trained, but this was not explicit.
+- After: CKPT3 builds untrained templates from saved baseline hyperparameters, then retrains per fold (correct stacking behavior).
+- Before: OOF generation could include fold issues/leakage or incomplete coverage.
+- After: OOF is generated with time-ordered splits over multi-cutoff data, and meta-learner trains only on rows with full OOF predictions.
+- Before: Checkpoints only saved logs.
+- After: Temporal checkpoints save `meta_learner.pkl` and `base_models.pkl` in `checkpoints/temporal`.
+
 **References and Acknowledgments**
 - UCI Machine Learning Repository: Online Retail II dataset
 - scikit-learn, xgboost, lifetimes
