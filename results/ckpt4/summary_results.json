@@ -1,6 +1,0 @@
-{
-  "stacking_mae": 1.1185,
-  "two_stage_mae": 1.105,
-  "best_baseline_line": "Best Baseline: SimpleAvg (MAE: 1.1050)",
-  "simpleavg_mae": 1.105
-}
