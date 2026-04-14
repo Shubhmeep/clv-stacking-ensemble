@@ -17,4 +17,4 @@ figures/.ipynb_checkpoints/
 .DS_Store
 Thumbs.db
 .env
-*.log
+*.logmodels/
